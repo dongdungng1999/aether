@@ -72,21 +72,6 @@ def _mount_local(app: FastAPI) -> None:
     except Exception as e:
         logger.warning("[MCP] local MCPs failed: %s", e)
 
-    try:
-        worklog_dir = pathlib.Path(os.environ.get(
-            "WORKLOG_MCP_DIR",
-            "/data/dungnguyen/adaptive_modelling_genesis/tools/worklog",
-        ))
-        if worklog_dir.exists():
-            sys.path.insert(0, str(worklog_dir))
-            from mcp_server import mcp as mcp_worklog
-            _register_mcp(app, "/mcp/worklog", mcp_worklog)
-            logger.info("[MCP] worklog mounted from %s", worklog_dir)
-        else:
-            logger.info("[MCP] worklog: %s not found — skipped", worklog_dir)
-    except Exception as e:
-        logger.warning("[MCP] worklog failed: %s", e)
-
 
 # ── External MCPs (stdio subprocess proxied via MCP ClientSession) ────────────
 
