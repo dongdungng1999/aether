@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="{{CSP}}" />
+  <title>Aether</title>
+  <link rel="stylesheet" href="{{CSS_FONTS}}" />
+  <link rel="stylesheet" href="{{CSS_BASE}}" />
+  <link rel="stylesheet" href="{{CSS_THEMES}}" />
+  <!-- 0.4.133 — highlight.js theme, loaded eagerly (1 KB). -->
+  <link rel="stylesheet" href="{{CSS_HIGHLIGHT}}" />
+  <link rel="stylesheet" href="{{CSS_KATEX}}" />
+  <link rel="stylesheet" href="{{VENDOR_BASE}}/xterm/xterm.css" />
+  <!-- 0.4.133 — DOMPurify (22 KB) loaded eagerly; used by html/md/svg
+       preview paths. Heavier libraries (docx-preview, SheetJS, PptxViewJS,
+       pdfjs, epub.js, hljs, papaparse, json-formatter) are lazy-loaded
+       on-demand via loadVendorScript(). -->
+  <script src="{{JS_DOMPURIFY}}"></script>
+  <script src="{{JS_KATEX}}"></script>
+  <script>window.__AURA_VENDOR_BASE__ = "{{VENDOR_BASE}}";</script>
+</head>
+<body class="theme-claude" data-icon-url="{{ICON_URL}}">
+
+  <!-- 0.4.41 — global SVG defs (arrow marker etc.) so any inline <svg>
+       fenced block emitted by the model can reference url(#arr) for
+       arrow heads without re-declaring <defs> every time. -->
+  <svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true">
+    <defs>
+      <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+      </marker>
+    </defs>
+  </svg>
+
+  <!-- ROOT: 3-pane layout (left rail + main + optional right artifact pane) -->
+  <div id="app">
+
+    <!-- LEFT RAIL -->
+    <aside id="rail" class="rail">
+      <div class="rail-top">
+        <button id="newChatBtn" class="rail-cta">
+          <span class="ico">＋</span>
+          <span>New Chat</span>
+        </button>
+        <button id="railCollapseBtn" class="icon-btn rail-collapse-btn" title="Collapse sidebar" aria-label="Collapse sidebar">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+      </div>
+
+      <div class="rail-section" id="recentSection">
+        <div class="rail-h rail-h-row">
+          <button class="rail-toggle rail-h-flex" id="recentToggle" title="Toggle Recent">
+            <span class="rail-caret">▾</span><span>Recent</span>
+          </button>
+          <button id="recentSelectToggle" class="rail-mini" title="Select multiple chats" aria-label="Select multiple">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+          </button>
+          <select id="recentSort" class="rail-sort" title="Sort Recent">
+            <option value="updated">Recent</option>
+            <option value="created">Created</option>
+            <option value="title">A→Z</option>
+          </select>
+        </div>
+        <!-- Bulk-delete bar — only visible while in select mode. -->
+        <div id="recentSelectBar" class="rail-select-bar" hidden>
+          <span id="recentSelectCount">0 selected</span>
+          <button id="recentSelectAll" class="ghost-btn">All</button>
+          <button id="recentSelectDelete" class="danger-btn" disabled>Delete</button>
+          <button id="recentSelectCancel" class="ghost-btn">✕</button>
+        </div>
+        <ul id="recentList" class="rail-list"></ul>
+      </div>
+
+      <!-- MinerU toggle button — sits above the rail section splitter -->
+      <div class="rail-mineru-zone">
+        <button id="mineruBoardToggle" class="rail-mineru-btn" type="button" title="Toggle MinerU panel" aria-expanded="false">
+          <span class="mineru-bar-dot" id="mineruBarDot"></span>
+          <span class="rail-mineru-label">MinerU</span>
+          <span id="mineruBarState" class="rail-mineru-state"></span>
+          <span class="rail-mineru-caret">›</span>
+        </button>
+      </div>
+
+      <!-- 0.4.14 — draggable splitter between Recent and Projects -->
+      <div id="railSectionSplitter" class="rail-section-splitter" title="Drag to resize Recent / Projects" role="separator" aria-orientation="horizontal"></div>
+
+      <div class="rail-section" id="projectsSection">
+        <div class="rail-h rail-h-row">
+          <button class="rail-toggle rail-h-flex" id="projectsToggle" title="Toggle Projects">
+            <span class="rail-caret">▾</span><span>Projects</span>
+          </button>
+          <button id="newProjectBtn" class="rail-mini" title="New project">＋</button>
+        </div>
+        <ul id="projectList" class="rail-list"></ul>
+      </div>
+
+      <div class="rail-foot">
+        <button id="settingsBtn" class="rail-foot-btn" title="Settings">
+          <span class="ico">Settings</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- DRAGGABLE SPLITTER between rail and main -->
+    <div id="splitter" class="splitter" title="Drag to resize"></div>
+
+    <!-- Floating expand tab — visible only when body has rail-collapsed. -->
+    <button id="railExpandTab" class="rail-expand-tab" title="Expand sidebar" aria-label="Expand sidebar" hidden>
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+
+    <!-- MAIN VIEW (chat OR settings) -->
+    <main id="main" class="main">
+      <!-- top bar -->
+      <header id="topbar" class="topbar">
+        <div class="topbar-row topbar-row-nav">
+        <div class="topbar-group topbar-left">
+          <div class="mode-tabs" id="modeTabs" role="tablist" aria-label="Workspace mode">
+            <button id="modeResearch" class="mode-tab active" type="button">Research</button>
+            <button id="modeCoding" class="mode-tab" type="button">Coding</button>
+          </div>
+          <button id="workspaceSplitToggle" class="icon-btn split-toggle-btn" type="button" title="Split Research and Coding" aria-label="Split Research and Coding" aria-pressed="false">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+          </button>
+          <select id="workspaceLayoutPicker" class="workspace-layout-picker" title="Split layout" aria-label="Split layout" hidden>
+            <option value="research-left">Research left · Coding right</option>
+            <option value="coding-left">Coding left · Research right</option>
+            <option value="research-top">Research top · Coding bottom</option>
+            <option value="coding-top">Coding top · Research bottom</option>
+          </select>
+        </div>
+        <div class="topbar-group topbar-context">
+          <div class="picker"><span class="picker-l">Project</span>
+            <span id="projectLabel" class="project-label" title="Chat's project — assigned when the chat was created. Chats created from 'New Chat' are Orphan.">Orphan</span>
+          </div>
+        </div>
+        <div class="topbar-spacer"></div>
+        <div class="topbar-group topbar-status">
+          <span id="proxyPill" class="proxy-pill" title="Active proxy">proxy: unknown</span>
+          <button id="topGearBtn" class="icon-btn" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3h.1a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6h.1a1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.6 1h.1a2 2 0 1 1 0 4H21a1.7 1.7 0 0 0-1.6 1z"/></svg></button>
+        </div>
+        </div><!-- /topbar-row-nav -->
+        <!-- Generation settings (Model/Effort/Temp) and the chat/view action
+             tools (readable width, font, artifacts, MinerU, system prompt,
+             compact, snapshot, export) all live in the composer toolbar
+             (Claude-web style) so they sit next to the message. -->
+      </header>
+      <section id="workspaceShell" class="workspace-shell" data-layout="research-left" data-focus="research">
+        <section id="researchPane" class="workspace-pane research-pane" aria-label="Research workspace">
+          <section id="mineruRuntime" class="mineru-runtime rail-mineru-runtime" hidden></section>
+          <!-- chat thread -->
+          <section id="thread" class="thread">
+        <div id="threadInner" class="thread-inner">
+          <div class="empty-state">
+            <svg class="empty-logo" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M24 4C13 4 4 11.8 4 22c0 5.2 2.6 9.8 6.8 13L8 42l9-3.2A22.4 22.4 0 0 0 24 40c11 0 20-7.8 20-18S35 4 24 4z"/></svg>
+            <h2>Aether</h2>
+            <p class="muted">Select a chat from the left, or start a new one.</p>
+            <p class="muted small">Storage ready — chat streaming arrives in P5.3.</p>
+          </div>
+        </div>
+          </section>
+
+          <section id="agentMonitor" class="agent-monitor" hidden>
+        <div id="agentThreadBar" class="agent-thread-bar" hidden>
+          <button id="agentBackBtn" class="agent-back-btn" type="button">← Orchestrator</button>
+          <div id="agentBreadcrumb" class="agent-breadcrumb"></div>
+          <button id="agentCancelBtn" class="agent-cancel-btn" type="button" hidden>Cancel agent</button>
+          <button id="agentResumeBtn" class="agent-resume-btn" type="button" hidden>Resume agent</button>
+          <span id="agentSummarizeStatus" class="agent-summarize-status" hidden></span>
+          <button id="agentSubmitBtn" class="agent-submit-btn" type="button" hidden>Submit &#x2191;</button>
+          <span id="agentSubmitStatus" class="agent-submit-status" hidden></span>
+        </div>
+        <div id="agentDockHead" class="agent-dock-head" aria-live="polite">
+          <span class="agent-dock-title">Agents</span>
+          <span id="agentDockCount" class="agent-dock-count"></span>
+          <button id="agentResumeAllBtn" class="agent-batch-btn" type="button" hidden title="Resume interrupted agents in the active run">Resume all</button>
+          <button id="agentSummaryAllBtn" class="agent-batch-btn" type="button" hidden title="Ask all terminal leaf agents to summarize their full session">Summary all leaf</button>
+          <button id="agentSubmitAllBtn" class="agent-batch-btn agent-batch-btn--primary" type="button" hidden title="Submit leaf results bottom-up through parents to the orchestrator">Bottom up submit</button>
+          <span id="agentPropagationStatus" class="agent-propagation-status" hidden></span>
+          <button id="agentDockCollapseBtn" class="agent-dock-collapse-btn" type="button" title="Collapse agent panel" aria-label="Collapse agent panel">▲</button>
+        </div>
+        <div id="agentDock" class="agent-dock" role="list" aria-label="Sub-agent activity"></div>
+      </section>
+
+          <!-- composer -->
+          <footer id="composer" class="composer">
+        <div id="composerResize" class="composer-resize" title="Drag to resize composer"></div>
+        <div id="attachStrip" class="attach-strip"></div>
+        <div class="composer-status-row" id="composerStatusRow">
+          <div id="ctxProgress" class="ctx-progress" hidden></div>
+          <button id="artifactStatusPill" class="artifact-status-pill" type="button" hidden title="Open current preview"></button>
+        </div>
+
+        <div class="composer-box" id="composerBox">
+          <!-- Icons are inline SVG (Lucide-derived strokes, 18px viewBox=24).
+               Emoji renders inconsistently across Linux/Win/Mac and at 14px
+               looked muddy. SVG = crisp at any size, picks up `currentColor`
+               so theme palettes still apply. (#7 in 0.2.18) -->
+          <input id="attachInput" type="file" multiple hidden />
+          <textarea id="composerInput" rows="1" placeholder="Message Aether… (drag files here)"></textarea>
+          <!-- Composer toolbar (Claude-web style): tools + Model/Effort pickers
+               on the left, Send on the right. Model/Effort moved here from the
+               top bar so generation settings sit next to the message. -->
+          <div class="composer-toolbar">
+            <div class="composer-tools-left">
+              <button id="attachBtn" class="icon-btn" title="Attach: click = pick on Linux host (files sandbox/proxy can see) · Shift-click / right-click = pick on this device (VS Code client)" aria-label="Attach file">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 17.99 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+              </button>
+              <button id="devModeBtn" class="icon-btn dev-mode-btn" title="Developer Mode — drop the sandbox so the model can run bash/python on the real workspace (per session, off by default)" aria-pressed="false" aria-label="Developer mode">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+              </button>
+              <div class="composer-picker" title="Model for this chat">
+                <select id="modelPicker" aria-label="Model">
+                  <!-- Populated at boot from host.yaml `ui_models` via RPC
+                       `config.uiModels`. These fallbacks stay in the HTML so the
+                       dropdown isn't empty during the brief window before the RPC
+                       resolves (or if the RPC fails). -->
+                  <option value="claude-opus-4-8">Claude Opus 4.8</option>
+                  <option value="claude-opus-4-7">Claude Opus 4.7</option>
+                  <option value="claude-opus-4-6">Claude Opus 4.6</option>
+                  <option value="claude-sonnet-5">Claude Sonnet 5</option>
+                  <option value="claude-sonnet-4-6" selected>Claude Sonnet 4.6</option>
+                  <option value="claude-sonnet-4-5">Claude Sonnet 4.5</option>
+                  <option value="claude-haiku-4-5">Claude Haiku 4.5</option>
+                  <option value="gpt-5.6-sol">GPT 5.6 Sol</option>
+                  <option value="gpt-5.6-luna">GPT 5.6 Luna</option>
+                  <option value="gpt-5.6-terra">GPT 5.6 Terra</option>
+                  <option value="gpt-5.5">GPT 5.5</option>
+                  <option value="gpt-5.4">GPT 5.4</option>
+                  <option value="gpt-5.4-mini">GPT 5.4 mini</option>
+                </select>
+                <button id="modelUnavailableBtn" class="model-lock-btn" title="Mark selected model temporarily unavailable for sub-agents">○</button>
+              </div>
+              <div class="composer-picker" title="Reasoning effort">
+                <select id="thinkingPicker" aria-label="Effort" title="Reasoning budget per turn. Some providers cap total output tokens (thinking + response) — high/max can truncate on complex prompts. Prefer medium for detailed responses.">
+                  <option value="off" title="No extended reasoning. Best for short answers, chatty use, quick lookups.">Effort: off</option>
+                  <option value="low" title="Minimal reasoning (~1k tokens). Best for simple factual questions.">Effort: low</option>
+                  <option value="medium" selected title="Balanced reasoning (~4k tokens). Recommended default for most tasks including SVG/code.">Effort: medium</option>
+                  <option value="high" title="Extended reasoning (~16k tokens). Some providers may truncate very long outputs on complex prompts.">Effort: high</option>
+                  <option value="max" title="⚠️ Maximum reasoning (up to 32k requested). Some providers cap total output tokens, so the model may finish with thinking only and no visible response on hard prompts. Use medium/high instead when asking for long deliverables (SVG, HTML, code).">Effort: max</option>
+                </select>
+              </div>
+              <!-- Temperature moved here from the top bar (v0.4.420): per-chat
+                   slider + preset chip, right next to Model/Effort. -->
+              <div class="picker picker-temp composer-temp" title="Temperature — 0 = deterministic (precise), 0.7 = balanced, 1.2+ = creative. Per-chat.">
+                <span class="picker-l">Temp</span>
+                <input id="tempSlider" type="range" min="0" max="1.5" step="0.05" value="0.7" />
+                <span id="tempValue" class="temp-value">0.70</span>
+                <span id="tempPreset" class="temp-preset" data-state="balanced" title="Click to cycle preset">balanced</span>
+              </div>
+              <!-- Chat / view action tools moved here from the top bar: readable
+                   width, font style, artifacts, MinerU, system prompt, compact,
+                   snapshot HTML, export. IDs unchanged so handlers keep binding. -->
+              <span class="composer-divider" aria-hidden="true"></span>
+              <div class="composer-actions">
+                <button id="layoutWidthToggle" class="icon-btn" title="Toggle readable width" aria-label="Toggle readable width">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M8 12h8M4 18h16"/></svg>
+                </button>
+                <select id="fontStylePicker" class="font-style-picker" title="Message font style" aria-label="Message font style">
+                  <option value="source">Source Serif</option>
+                  <option value="charter">Charter</option>
+                  <option value="literata">Literata</option>
+                  <option value="sans">Sans</option>
+                </select>
+                <button id="artifactGalleryBtn" class="icon-btn artifact-gallery-btn" title="Artifacts created in this chat" aria-label="Artifacts">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2z"/></svg>
+                  <span id="artifactGalleryBadge" class="artifact-gallery-badge" hidden>0</span>
+                </button>
+                <button id="mineruPanelBtn" class="icon-btn mineru-panel-btn" title="Open MinerU control panel" aria-label="MinerU Control">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3l3 3"/><path d="M3 21l7.8-7.8"/><path d="M9.5 7.5l7 7"/><path d="M11 6l3-3 7 7-3 3"/><path d="M6 12l6 6"/></svg>
+                </button>
+                <button id="topSpBtn" class="icon-btn" title="View / edit System Prompt tiers: Global → Project → Chat" aria-label="System prompt">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
+                </button>
+                <button id="topCompactBtn" class="icon-btn" title="Compact chat — summarize older history into a system note; recent turns stay verbatim" aria-label="Compact chat">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                </button>
+                <button id="topExportHtmlBtn" class="icon-btn" title="Snapshot this chat as HTML + images (for debug/share)" aria-label="Snapshot chat as HTML">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                </button>
+                <button id="topExportBtn" class="icon-btn" title="Export this chat as Markdown" aria-label="Export chat">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                </button>
+              </div>
+            </div>
+            <button id="sendBtn" class="send-btn" title="Send (Enter) — click while streaming to stop" aria-label="Send">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+            </button>
+          </div>
+        </div><!-- /#composerBox -->
+        <div id="devModeBanner" class="dev-mode-banner" hidden>
+          Developer Mode is ON for this chat — bash &amp; python run unsandboxed on your VS Code workspace. Click again to turn it off.
+        </div>
+        <div id="dropOverlay" class="drop-overlay" hidden>📥 Drop files to attach</div>
+          </footer>
+        </section>
+        <div id="workspaceSplitter" class="workspace-splitter" title="Drag to resize Research/Coding split" role="separator" aria-orientation="vertical" hidden></div>
+        <section id="codingPane" class="workspace-pane coding-pane" aria-label="Coding workspace">
+          <section id="codingPanel" class="coding-panel" hidden>
+            <section class="coding-main">
+              <div id="terminalViewport" class="terminal-viewport" tabindex="0"></div>
+            </section>
+            <div id="terminalSplitter" class="terminal-splitter" title="Drag to resize terminal list" role="separator" aria-orientation="vertical"></div>
+            <aside class="terminal-sidebar">
+              <div class="terminal-sidebar-head">
+                <span>Terminals</span>
+                <div class="terminal-sidebar-actions">
+                  <button id="terminalNewBtn" class="terminal-new-tab" type="button" title="New terminal">+</button>
+                  <button id="terminalRefreshBtn" class="terminal-refresh" type="button" title="Refresh terminals">↻</button>
+                </div>
+              </div>
+              <div id="terminalSessions" class="terminal-list" role="tablist" aria-label="Aether terminals"></div>
+            </aside>
+          </section>
+        </section>
+      </section>
+      <aside id="artifactGallery" class="artifact-gallery" hidden aria-label="Session artifacts">
+        <header class="artifact-gallery-head">
+          <div>
+            <h2>Artifacts</h2>
+            <p id="artifactGallerySub" class="muted small">Files created in this chat</p>
+          </div>
+          <div class="artifact-gallery-head-actions">
+            <select id="artifactGallerySort" class="artifact-gallery-sort" title="Sort artifacts" aria-label="Sort artifacts">
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+              <option value="name">A→Z</option>
+              <option value="size">Size</option>
+            </select>
+            <button id="artifactGalleryClose" class="icon-btn" title="Close artifacts" aria-label="Close artifacts">✕</button>
+          </div>
+        </header>
+        <div id="artifactGalleryList" class="artifact-gallery-list"></div>
+      </aside>
+    </main>
+
+    <!-- RIGHT ARTIFACT PANEL (split view, shown when assistant emits an artifact) -->
+    <div id="artifactSplitter" class="splitter artifact-splitter" hidden title="Drag to resize"></div>
+    <aside id="artifactPanel" class="artifact-panel" hidden>
+      <header class="artifact-bar">
+        <div class="artifact-tabs" id="artifactTabs"></div>
+        <div class="artifact-bar-spacer"></div>
+        <button id="artifactClose" class="icon-btn" title="Close (Esc)">✕</button>
+      </header>
+      <div class="artifact-body" id="artifactBody"></div>
+    </aside>
+
+
+    <!-- PROJECT VIEW (full-screen replace inside main area; hidden by default) -->
+    <section id="projectView" class="project-view" hidden>
+      <header class="project-bar">
+        <button id="projectBack" class="settings-back" title="Back to chat (Esc)">← Back</button>
+        <h1 id="projectTitle">Project</h1>
+        <div class="project-bar-spacer"></div>
+        <button id="projectRename" class="ghost-btn" title="Rename project">✎ Rename</button>
+        <button id="projectDelete" class="ghost-btn" title="Delete project">Delete</button>
+      </header>
+      <div class="project-body">
+        <section class="project-card">
+          <h2>Description</h2>
+          <p class="muted small">Stored as the project-tier system prompt — auto-prepended to every chat in this project. Other projects don't see it.</p>
+          <textarea id="projectDescEditor" class="sp-editor" rows="8"
+            placeholder="What is this project about? Who is it for? Any conventions, frameworks, or constraints Aether should remember in every chat here?"></textarea>
+          <div class="sp-actions">
+            <span class="muted small" id="projectDescStatus"></span>
+            <button id="projectDescSave" class="primary-btn">Save</button>
+          </div>
+        </section>
+
+        <section class="project-card">
+          <div class="project-card-h">
+            <h2>Chats in this project</h2>
+            <div class="project-chat-actions">
+              <button id="projectChatSelectToggle" class="ghost-btn" title="Select multiple chats" aria-label="Select multiple">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+              </button>
+              <button id="projectNewChat" class="primary-btn">＋ New chat</button>
+            </div>
+          </div>
+          <div id="projectChatSelectBar" class="rail-select-bar" hidden>
+            <span id="projectChatSelCount" class="muted small">0 selected</span>
+            <div class="select-bar-actions">
+              <button id="projectChatSelectAll" class="ghost-btn">All</button>
+              <button id="projectChatSelectDelete" class="danger-btn">Delete</button>
+              <button id="projectChatSelectCancel" class="ghost-btn">Cancel</button>
+            </div>
+          </div>
+          <ul id="projectChatList" class="project-chat-list"></ul>
+        </section>
+      </div>
+    </section>
+
+    <!-- SETTINGS VIEW (full-screen replace; hidden by default) -->
+    <section id="settings" class="settings" hidden>
+      <header class="settings-bar">
+        <button id="settingsBack" class="settings-back" title="Back to chat (Esc)">← Back</button>
+        <h1>Settings</h1>
+      </header>
+      <div class="settings-body">
+        <!-- Theme picker removed in 0.4.0 — single professional dark theme. -->
+
+
+        <section class="settings-card">
+          <h2>System Prompt</h2>
+          <p class="muted">Three tiers, joined in this order on every turn — <b>global</b> → <b>per-project</b> → <b>per-chat</b>. Saved instantly; takes effect on the next turn. The Developer Mode addendum is appended automatically when on.</p>
+          <div class="sp-meta">
+            <span id="spDefaultBadge" class="sp-badge sp-badge-default" hidden>built-in default</span>
+            <span id="spOverrideBadge" class="sp-badge sp-badge-override" hidden>custom override</span>
+          </div>
+          <div class="sp-tabs">
+            <button class="sp-tab active" data-tier="global">Global</button>
+            <button class="sp-tab" data-tier="project">Per-project</button>
+            <button class="sp-tab" data-tier="chat">Per-chat</button>
+          </div>
+          <div class="sp-controls" id="spControls"></div>
+          <textarea id="spEditor" class="sp-editor" rows="14" spellcheck="false"></textarea>
+          <div class="sp-actions">
+            <button id="spReset" class="ghost-btn">Reset to default</button>
+            <button id="spSave" class="primary-btn">Save</button>
+          </div>
+        </section>
+
+        <section class="settings-card">
+          <h2>Pricing</h2>
+          <p class="muted">USD per 1M tokens. Public list prices ship as defaults; edits save in Studio's DB and re-cost future turns. Past turns stay at the price they were charged at.</p>
+          <table class="pricing-table">
+            <thead>
+              <tr><th>Model</th><th>Input</th><th>Output</th><th>Cache read</th><th>Cache write</th><th></th></tr>
+            </thead>
+            <tbody id="pricingBody"></tbody>
+          </table>
+        </section>
+
+        <!-- 0.4.419 — Host controls mirror the VS Code sidebar so the whole
+             extension can be driven from the chat UI (and, later, the
+             Cloudflare browser client). Build/install/purge/native pickers
+             run on the host and are hidden in the browser (read-only). -->
+        <section class="settings-card" id="hostCard">
+          <h2>Containers</h2>
+          <p class="muted">Proxy &amp; sandbox lifecycle, mirrored from the sidebar. Build / install / stop / remove / purge run on the host and are available only in the VS Code panel — the browser view is read-only.</p>
+          <div id="hostContainers" class="host-svc-list"></div>
+          <div class="host-connect" id="hostConnectWrap">
+            <button id="hostConnectToggle" class="ghost-btn">Connect existing proxy…</button>
+            <div id="hostProxyPicker" class="host-picker" hidden></div>
+
+            <!-- Custom upstream provider: point the proxy at an OpenAI-native
+                 server (e.g. llama.cpp /v1) or an Anthropic-format server, then
+                 Connect. The proxy stays in the path (image/visualise/mcp/upload
+                 keep working) — only its upstream is swapped, at runtime, with no
+                 container restart. On connect the model list refreshes from the
+                 server. VS Code panel only. -->
+            <div class="host-provider" id="hostProviderWrap">
+              <div class="host-provider-head">
+                <span class="host-status"><span id="hostProviderDot" class="host-dot on"></span> <span id="hostProviderLabel">Upstream: not connected</span></span>
+              </div>
+              <div class="host-provider-form">
+                <select id="hostProviderFormat" class="host-input" title="Wire format the server speaks">
+                  <option value="openai">OpenAI — native (llama.cpp)</option>
+                  <option value="anthropic">Anthropic — converted</option>
+                </select>
+                <input id="hostProviderUrl" class="host-input" type="text" placeholder="http://10.231.19.12:8851/v1" title="Base URL — include /v1" />
+                <input id="hostProviderKey" class="host-input" type="password" placeholder="API key (blank for local)" title="Optional — leave blank for keyless local servers" autocomplete="off" />
+                <button id="hostProviderConnect" class="ghost-btn">Connect</button>
+                <button id="hostProviderReset" class="ghost-btn">Use default</button>
+              </div>
+            </div>
+
+            <!-- MinerU server URL: local document-parsing service, unrelated to
+                 the upstream chat provider above. Same on-load fetch + Save
+                 pattern as the provider block. -->
+            <div class="host-provider" id="hostMineruWrap">
+              <div class="host-provider-head">
+                <span class="host-status">MinerU server</span>
+              </div>
+              <div class="host-provider-form">
+                <input id="mineruUrlInput" class="host-input" type="text" placeholder="http://localhost:8962" title="MinerU server base URL" />
+                <button id="mineruUrlSave" class="ghost-btn">Save</button>
+              </div>
+              <p class="muted small">If you run MinerU on this machine, point it here to enable document-parsing tools.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="settings-card" id="hostExcalidrawCard">
+          <h2>Excalidraw</h2>
+          <p class="muted">Local whiteboard server backing the excalidraw MCP.</p>
+          <div class="host-row">
+            <span class="host-status"><span class="host-dot off"></span> whiteboard server</span>
+            <span class="host-actions">
+              <button class="ghost-btn" data-excalidraw="start">Start</button>
+              <button class="ghost-btn" data-excalidraw="stop">Stop</button>
+              <button class="ghost-btn" data-excalidraw="open">Open board</button>
+            </span>
+          </div>
+        </section>
+
+        <section class="settings-card" id="hostCredsCard">
+          <h2>Credentials</h2>
+          <p class="muted">Optional env file for MCP tool API keys (e.g. Tavily, Firecrawl). Never logged.</p>
+          <div class="host-row">
+            <span class="host-status" id="hostEnvLabel">Env file: none</span>
+            <span class="host-actions">
+              <button id="hostEnvPickBtn" class="ghost-btn">Choose file…</button>
+              <button id="hostEnvClearBtn" class="ghost-btn">Clear</button>
+            </span>
+          </div>
+        </section>
+
+        <section class="settings-card" id="hostPresetCard">
+          <h2>Preset</h2>
+          <p class="muted">The host.yaml driving this workspace (shared with the CLI).</p>
+          <div class="host-row">
+            <span class="host-status" id="hostPresetLabel">preset: linux</span>
+            <span class="host-actions">
+              <button id="hostPresetEditBtn" class="ghost-btn">Edit host.yaml</button>
+              <button id="hostPresetResetBtn" class="ghost-btn">Reset to default</button>
+            </span>
+          </div>
+        </section>
+
+      </div>
+    </section>
+
+    <!-- Generic input modal (replaces window.prompt — VS Code WebView blocks it).
+         The same DOM serves both showInputModal (input visible) and showConfirmModal
+         (input hidden). modal-message is shown for confirms; input for input prompts. -->
+    <div id="modalOverlay" class="modal-overlay" hidden>
+      <div class="modal-card">
+        <div class="modal-title" id="modalTitle">Title</div>
+        <div class="modal-message" id="modalMessage" hidden></div>
+        <input id="modalInput" class="modal-input" type="text" />
+        <div class="modal-actions">
+          <button class="ghost-btn" id="modalCancel">Cancel</button>
+          <button class="primary-btn" id="modalOk">OK</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="{{JS_APP}}"></script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+/*!
+  Theme: VS Code Dark+ (adapted for AURA Studio dark chat)
+  Token colors mirror VS Code's default Dark+ theme so fenced code in chat
+  reads like the editor. Background is transparent — the .md-code wrapper
+  (app.css) supplies the dark surface — so this composes with any dark theme.
+*/
+pre code.hljs{display:block;overflow-x:auto;padding:1em}code.hljs{padding:3px 5px}
+.hljs{color:#d4d4d4;background:transparent}
+.hljs-comment,.hljs-quote{color:#6a9955;font-style:italic}
+.hljs-keyword,.hljs-selector-tag,.hljs-doctag,.hljs-meta .hljs-keyword{color:#569cd6}
+.hljs-built_in,.hljs-name,.hljs-tag,.hljs-title.class_,.hljs-type{color:#4ec9b0}
+.hljs-string,.hljs-meta .hljs-string,.hljs-regexp,.hljs-addition{color:#ce9178}
+.hljs-number,.hljs-literal{color:#b5cea8}
+.hljs-title,.hljs-title.function_,.hljs-section{color:#dcdcaa}
+.hljs-variable,.hljs-template-variable,.hljs-attr,.hljs-attribute,.hljs-selector-attr,.hljs-selector-class,.hljs-selector-id{color:#9cdcfe}
+.hljs-operator,.hljs-punctuation,.hljs-subst{color:#d4d4d4}
+.hljs-symbol,.hljs-bullet,.hljs-meta{color:#d7ba7d}
+.hljs-deletion{color:#d16969}
+.hljs-emphasis{font-style:italic}
+.hljs-strong{font-weight:700}

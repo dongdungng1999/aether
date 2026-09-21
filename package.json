@@ -1,0 +1,30 @@
+{
+  "name": "aether",
+  "displayName": "Aether",
+  "description": "Self-hosted, provider-agnostic chat. Runs standalone over WebSocket — no VS Code, no Docker required. Point it at any OpenAI/Anthropic-compatible endpoint; chats and projects stay on your own machine.",
+  "version": "0.1.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "author": "Dung Nguyen",
+  "main": "./out/core/server.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "watch": "tsc -watch -p .",
+    "start": "node out/core/server.js"
+  },
+  "devDependencies": {
+    "@types/marked": "^4.3.2",
+    "@types/node": "^20.0.0",
+    "@types/ws": "^8.18.1",
+    "typescript": "^5.4.0"
+  },
+  "dependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "marked": "^4.3.0",
+    "node-pty": "^1.1.0",
+    "ws": "^8.21.1"
+  }
+}

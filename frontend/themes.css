@@ -1,0 +1,108 @@
+/* ─────────────────────────────────────────────────────────────────
+   AURA Studio — single dark theme (multi-tier).
+
+   Vùng dark theo sắc độ tăng dần để mắt đỡ mệt khi nhìn lâu:
+
+     bg          0F1115   page background — dark mạnh nhất
+     surface     17191E   bubble assistant area, code block bg
+     surface-2   1E2128   user bubble, picker, hover row — dark vừa
+     surface-3   272A33   raised popover, card, modal — dark nhẹ
+
+   User bubble KHÔNG dùng accent cam nữa (chữ đen trên cam đọc khó);
+   chuyển về `--surface-2` với chữ sáng `--fg-strong`.
+
+   Accent cam giữ NHƯNG chỉ dùng cho:
+     • CTA primary (Send button, Save button)
+     • Active link / active rail item border-left
+     • Focus ring
+
+   Border + divider: alpha trắng để blend trên 4 tầng surface.
+   ──────────────────────────────────────────────────────────────── */
+
+body.theme-aura-dark,
+body.theme-claude,
+body.theme-claude-dark,
+body.theme-renesas,
+body.theme-renesas-dark,
+body.theme-cyberpunk,
+body.theme-tahoe,
+body.theme-tahoe-dark {
+  color-scheme: dark;
+
+  --font-sans:  'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+  --font-mono:  'JetBrains Mono', ui-monospace, Menlo, monospace;
+
+  /* Surfaces — 4 tầng từ page → popover.
+     v0.4.2 #F7: bumped each tier ~3-4 lightness points so the panel
+     reads as "neutral charcoal" rather than "void". The previous tier
+     felt suffocating after long sessions.
+     v0.4.3: bumped another ~6 points — dark enough to still feel dark,
+     light enough to not feel like a void at typical monitor brightness. */
+  --bg:            #22262E;
+  --surface:       #2A2E38;
+  --surface-2:     #333842;
+  --surface-3:     #3E4350;
+  --card:          var(--surface-3);
+  --card-hover:    rgba(255, 255, 255, 0.06);
+  --card-active:   rgba(255, 255, 255, 0.10);
+
+  /* Foreground — high contrast, no orange anywhere on text. */
+  --fg:            #E8E9EC;
+  --fg-strong:     #FFFFFF;
+  --fg-muted:      #A0A6B0;
+  --fg-subtle:     #71767F;
+
+  /* Borders — alpha so they sit on any surface. */
+  --border:        rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --divider:       rgba(255, 255, 255, 0.06);
+
+  /* Accent — Anthropic-derived warm orange. CTA-only. */
+  --accent:        #D97757;
+  --accent-hover:  #E58864;
+  --accent-fg:     #1A1208;
+  --accent-soft:   rgba(217, 119, 87, 0.16);
+  --accent-faint:  rgba(217, 119, 87, 0.08);
+
+  /* Status */
+  --ok:            #4CAF7A;
+  --warn:          #E2A23A;
+  --err:           #D44545;
+  --err-soft:      rgba(212, 69, 69, 0.14);
+
+  /* Rail (left sidebar) — slightly darker than bg to recede visually. */
+  --rail-bg:       #1D2028;
+  --rail-hover:    rgba(255, 255, 255, 0.05);
+  --rail-active:   rgba(217, 119, 87, 0.10);
+
+  /* Bubbles — user is neutral surface-2, NOT accent. */
+  --user-bg:       var(--surface-2);
+  --user-fg:       var(--fg-strong);
+  --user-border:   var(--border);
+  --asst-bg:       transparent;
+  --asst-fg:       var(--fg);
+
+  /* Code / pre — neutral dark surface; no warm/yellow default text. */
+  --code-bg:       #1F232B;
+  --code-fg:       #DDE3EA;
+  --inline-code-bg: rgba(255, 255, 255, 0.06);
+
+  /* Thinking block — purple tint, low saturation. */
+  --thinking-bg:   rgba(154, 122, 209, 0.08);
+  --thinking-fg:   #B7A3DD;
+
+  /* Shadows */
+  --shadow-sm:     0 1px 2px rgba(0, 0, 0, 0.30);
+  --shadow-md:     0 2px 6px rgba(0, 0, 0, 0.35);
+  --shadow-lg:     0 8px 24px rgba(0, 0, 0, 0.40);
+
+  /* Scrollbars */
+  --scroll-thumb:       rgba(255, 255, 255, 0.22);
+  --scroll-thumb-hover: rgba(255, 255, 255, 0.36);
+
+  /* Radii */
+  --radius-sm:     6px;
+  --radius-md:     10px;
+  --radius-lg:     14px;
+}

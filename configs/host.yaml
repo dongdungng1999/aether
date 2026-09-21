@@ -1,0 +1,54 @@
+# host.yaml — Aether host preset.
+#
+# There is no bundled default model provider — connect one from the chat
+# UI's Settings panel (Connect provider), which talks to the proxy's
+# /admin/provider endpoint at runtime. Nothing here configures a provider.
+
+# ===== PRESET IDENTITY =====
+preset:
+  name: default
+  description: "Default — $HOME + /data mounted"
+
+# ===== PROXY PORT =====
+# Only used to derive the (optional) sandbox ports below — the proxy itself
+# now runs as a local process and picks its own port automatically.
+proxy:
+  port_mode: auto       # auto = hash($USER) → port in port_range | manual = use port below
+  port: 8004
+  port_range: [8100, 8200]
+
+# ===== MODEL MAPPING =====
+# Populated live by Settings → Connect provider (POST /admin/provider auto-
+# discovers the upstream's model list). No bundled defaults.
+models: {}
+
+# ===== THINKING (extended reasoning — Claude only) =====
+thinking:
+  default_enabled: false
+  default_effort:  medium
+
+# ===== IMAGE CACHE (HTTP-only since 0.4.2) =====
+image:
+  ttl_hours: 24
+  max_files: 200
+  max_mb:    500
+
+# ===== MCP SERVICES =====
+mcp:
+  mineru_local_path: ""
+  mineru_control_port: 8938
+  mineru_control_host: ""
+
+# ===== CONTAINER MOUNTS =====
+mounts:
+  home: true
+  data: true
+  extra: []
+
+# ===== CLAUDE-MEM =====
+# namespace: project tag for chat observations.
+# path: optional host directory mounted as /mnt/claude-mem.
+# Empty/missing = <dataRoot>/claude-mem.
+claude_mem:
+  namespace: "aether"
+  # path: ""

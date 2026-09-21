@@ -1,0 +1,56 @@
+# container.yaml — proxy internals for the Aether proxy.
+#
+# There is no bundled default backend. The proxy stays unconfigured
+# ("mode": "default" in /admin/provider terms) until the client calls
+# POST /admin/provider with an "openai" or "anthropic" upstream — that is
+# the ONLY way to get a working upstream. /v1/messages fails closed with a
+# friendly JSON error until then.
+#
+# Anything below is either a proxy-internal constant (logging, proxy,
+# retry) or an optional fallback that only matters if you choose to wire a
+# config-driven upstream in the future via env vars — see the matching
+# AURA_* env var for each section:
+#   AURA_MODEL_MAP        JSON  →  models
+#   AURA_ENDPOINTS        JSON  →  endpoints
+#   AURA_ROUTING          JSON  →  routing
+#   AURA_RESPONSES_API    JSON  →  responses_api
+
+# ===== LOGGING =====
+logging:
+  level: "INFO"           # DEBUG | INFO | WARNING | ERROR
+  show_request: true      # [REQUEST] model=... messages=... max_tokens=... tools=...
+  show_tokens: true        # [TOKENS] in=... out=... est_tpm=... session=...
+  show_timing: true        # [TIMING] backend=...ms  total=...ms
+  show_queue: true         # [QUEUE] Waiting / Waited ...s
+  show_tools: false        # [DEBUG] Claude Code sent N tools: (verbose tool dump)
+  show_retry: true         # [429] Rate limit / backoff messages
+  show_thinking: true      # [THINKING] effort=... strategy=...
+
+# ===== PROXY SERVER =====
+# Port is always 8000 — the Node backend that spawns this process talks to
+# it over loopback on a port it chooses itself (PROXY_PORT env var).
+proxy:
+  host: "127.0.0.1"
+  port: 8000
+  timeout: 300
+  concurrency: 2      # max parallel requests to the connected upstream
+
+# ===== RETRY STRATEGY =====
+retry:
+  base_delay: 3
+  max_delay: 30
+  max_wait: 120
+
+# ===== FALLBACK DEFAULTS (unused unless AURA_* env vars are also unset AND
+# you re-enable a config-driven default upstream — currently unreachable,
+# see the "no bundled default backend" note above) =====
+models: {}
+endpoints: {}
+routing: {}
+responses_api:
+  models: []
+  default_effort: "low"
+
+thinking:
+  default_enabled: false
+  default_effort:  medium

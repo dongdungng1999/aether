@@ -1,0 +1,73 @@
+# Aether — optional sandbox stack.
+#
+# The chat backend and model-provider proxy run as plain local processes
+# (node + python), not containers — see ../scripts/run.sh. Docker is only
+# used here for the OPTIONAL code-execution sandbox tools (run_bash/
+# run_python/run_node). If you don't have Docker, or never install these
+# services, the app still works — those three tools just return a clear
+# error when called instead of executing.
+#
+#   sandbox      — Code interpreter (python + bash), read-only host mounts.
+#   sandbox-dev  — Same, but runs as root with host-writable mounts. Opt-in
+#                  only, never started unless you explicitly install it.
+#
+#   image:           aether-{svc}-${AETHER_USER}:{version}
+#   container_name:  aether-{svc}-${AETHER_USER}-{port}
+
+name: aether-${AETHER_USER:-default}
+
+services:
+  sandbox:
+    build:
+      context: ./sandbox
+    image: aether-sandbox-${AETHER_USER:-default}:${AETHER_VERSION:-latest}
+    container_name: aether-sandbox-${AETHER_USER:-default}-${AETHER_SANDBOX_PORT:-8800}
+    restart: unless-stopped
+    ports:
+      - "${AETHER_SANDBOX_PORT:-8800}:8765"
+    volumes:
+      - "${AETHER_HOST_DATA:-/data}:/data:ro"
+    environment:
+      SANDBOX_PORT: "8765"
+      AURA_DEFAULT_CWD:     "${AURA_DEFAULT_CWD:-/tmp/aura-artifacts}"
+      AURA_DEFAULT_TIMEOUT: "30"
+      AURA_MAX_TIMEOUT:     "300"
+      AURA_USER:            "${AETHER_USER:-default}"
+    networks: [aether-net]
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/health', timeout=2)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  sandbox-dev:
+    build:
+      context: ./sandbox-dev
+    image: aether-sandbox-dev-${AETHER_USER:-default}:${AETHER_VERSION:-latest}
+    container_name: aether-sandbox-dev-${AETHER_USER:-default}-${AETHER_SANDBOX_DEV_PORT:-8900}
+    restart: unless-stopped
+    user: "0:0"
+    ports:
+      - "${AETHER_SANDBOX_DEV_PORT:-8900}:8765"
+    volumes:
+      - "${AETHER_HOST_DATA:-/data}:/data"
+    environment:
+      SANDBOX_PORT: "8765"
+      AURA_DEFAULT_CWD:     "${AURA_DEFAULT_CWD:-/home}"
+      AURA_DEFAULT_TIMEOUT: "30"
+      AURA_MAX_TIMEOUT:     "300"
+      AURA_USER:            "${AETHER_USER:-default}"
+    networks: [aether-net]
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/health', timeout=2)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+networks:
+  aether-net:
+    driver: bridge
